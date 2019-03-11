@@ -5,8 +5,10 @@ const util = require('util')
 const xmlEscape = require('xml-escape')
 const sanitize = require('sanitize-xml-string').sanitize
 
-const { getAppId, log } = require('./utils')
+const { getAppId, log, getWindowsVersion } = require('./utils')
 const getToastNotifier = require('./get-toast-notifier')
+
+const winVer = getWindowsVersion()
 
 /**
  * A notification similar to the native Windows ToastNotification.
@@ -50,11 +52,12 @@ class ToastNotification extends EventEmitter {
 
     this.toast = new notifications.ToastNotification(xmlDocument)
     // The event args object for the activated event is returned by the UWP API as a basic Object type, so we cast it to ToastActivatedEventArgs
-    this.toast.on('activated', (t, e) => this.emit('activated', t, notifications.ToastActivatedEventArgs.castFrom(e)))
+    this.toast.on('activated', (t, e) => {
+      const typeActivated = (winVer === '8.0') ? 'confirm' : notifications.ToastActivatedEventArgs.castFrom(e).arguments
+      this.emit('activated', t, typeActivated)
+    })
     this.toast.on('dismissed', (..._args) => this.emit('dismissed', ..._args))
-
-    // Temporarily disabled due to a bug with Node 7
-    // this.toast.on('failed', (..._args) => this.emit('failed', ..._args))
+    this.toast.on('failed', (..._args) => this.emit('failed', ..._args))
 
     if (options.expirationTime) this.toast.expirationTime = options.expirationTime
     if (options.group) this.toast.group = options.group
